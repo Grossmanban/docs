@@ -1,0 +1,115 @@
+---
+title: "Установка и настройка MongoDB на Ubuntu 24.04"
+description: "Description of your new file."
+---
+
+
+## Предварительная настройка
+1. Установка необходимых пакетов:
+```bash
+sudo apt-get install gnupg curl
+```
+
+2. Импорт публичного ключа MongoDB:
+```bash
+curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
+   sudo gpg -o /usr/share/keyrings/mongodb-server-8.0.gpg \
+   --dearmor
+```
+
+3. Добавление репозитория MongoDB:
+```bash
+echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/8.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-8.0.list
+```
+
+## Установка MongoDB
+```bash
+sudo apt-get update
+sudo apt-get install -y mongodb-org
+```
+
+## Настройка безопасности
+
+1. Редактирование конфигурационного файла:
+```bash
+sudo micro /etc/mongod.conf
+```
+
+2. Включение авторизации (раскомментируйте и добавьте следующие строки):
+```yaml
+security:
+  authorization: enabled
+```
+
+3. Настройка сетевого доступа (в том же файле):
+```yaml
+net:
+  port: 27017
+  bindIp: 0.0.0.0  # Разрешает подключения со всех IP-адресов
+```
+
+4. Настройка файервола:
+```bash
+sudo ufw allow from YOUR_IP to any port 27017  # Замените YOUR_IP на ваш IP-адрес
+sudo ufw allow ssh  # Разрешаем SSH-подключения
+```
+
+5. Перезапуск и проверка статуса MongoDB:
+```bash
+sudo systemctl restart mongod
+sudo systemctl status mongod
+sudo lsof -i | grep mongo  # Проверка прослушиваемых портов
+```
+
+## Создание пользователей и настройка прав доступа
+
+1. Создание администратора (выполните в mongo shell):
+```javascript
+use admin
+db.createUser({
+  user: "admin",
+  pwd: "ВАШ_НАДЕЖНЫЙ_ПАРОЛЬ",
+  roles: [
+    { role: "root", db: "admin" }
+  ]
+})
+```
+
+2. Пример создания обычного пользователя:
+```javascript
+db.createUser({
+  user: "user",
+  pwd: "ВАШ_НАДЕЖНЫЙ_ПАРОЛЬ",
+  roles: [
+    { role: "readWrite", db: "vpn" }
+  ]
+})
+```
+
+3. Предоставление дополнительных прав существующему пользователю:
+```javascript
+db.grantRolesToUser("user1", [
+  { role: "readWrite", db: "db1" },
+  { role: "dbOwner", db: "db2" }
+])
+```
+
+## Подключение к MongoDB
+
+1. Подключение с аутентификацией:
+```bash
+mongo -u admin_user -p admin_password --authenticationDatabase admin
+```
+
+2. Создание новой базы данных и коллекции:
+```javascript
+use dbname1  # Создает новую базу данных
+db.createCollection("clients_tg")  # Создает новую коллекцию
+```
+
+### Важные замечания:
+- Всегда используйте надежные пароли
+- Убедитесь, что файервол правильно настроен
+- Регулярно обновляйте MongoDB для получения последних исправлений безопасности
+- Храните учетные данные в безопасном месте
+- При настройке `bindIp: 0.0.0.0` убедитесь, что приняты все необходимые меры безопасности
